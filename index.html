@@ -822,12 +822,13 @@ function toggleMic() {
     isMuted = !isMuted;
     btnMic.classList.toggle("muted", isMuted);
     if (isMuted) {
-      statusTextEl.innerHTML = "<b>MICRO EN PAUSE</b>";
-      subtitlesEl.textContent = "Micro en pause. Cliquez pour réactiver.";
-      clearPlayback();
+      statusTextEl.innerHTML = "<b>MICRO COUPÉ</b>";
+      // Send turn_complete signal immediately so Gemini Live starts answering without waiting for silence!
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "mic_muted", action: "turn_complete" }));
+      }
     } else {
       statusTextEl.innerHTML = "<b>À L'ÉCOUTE</b>";
-      subtitlesEl.textContent = "À votre écoute, monsieur.";
       if (recognition) { try { recognition.start(); } catch(e){} }
     }
   }
@@ -873,11 +874,19 @@ async function handleToolCall(callId, name, args) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url })
       }).then(r => r.json());
-      addLiveTask(callId, `Onglet Comet ouvert`, "done");
+      const destUrl = res.url || url || "chrome://newtab";
+      addLiveTask(callId, `Navigation : ${destUrl}`, "done");
+
       spawnCard({
         title: "Comet Browser",
         badge: "NAVIGATION",
-        content: `<p>Onglet ouvert dans Comet :</p><p style="margin-top:6px;color:#93c5fd;font-weight:600;">${res.url || "chrome://newtab"}</p>`
+        content: `
+          <p>Onglet ouvert / Navigation Comet :</p>
+          <p style="margin-top:8px;font-size:13.5px;font-weight:700;color:#93c5fd;word-break:break-all;">${destUrl}</p>
+          <div style="margin-top:12px;display:flex;gap:8px;">
+            <a href="${destUrl.startsWith('http') ? destUrl : '#'}" target="_blank" style="display:inline-block;padding:5px 12px;background:#2563eb;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600;font-size:11.5px;">↗ Accéder à la page</a>
+          </div>
+        `
       });
       toolOutput(callId, name, res);
     } catch(err) {

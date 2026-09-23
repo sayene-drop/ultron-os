@@ -608,38 +608,27 @@ def focus_comet_window():
 
 
 def do_open_tab(url: str = ""):
-    """Open a new tab in Comet browser (or default browser if Comet missing)."""
-    target = url.strip()
-    if target and not target.startswith(("http://", "https://", "chrome://", "about:")):
+    """Open a new tab or navigate in Comet browser."""
+    target = (url or "").strip()
+    if not target or target.lower() in ("new_tab", "nouvel onglet", "onglet vierge", "about:blank"):
+        target = "chrome://newtab"
+    elif target.startswith(("http://", "https://", "chrome://", "about:")):
+        pass
+    elif "." in target and " " not in target:
         target = "https://" + target
+    else:
+        import urllib.parse
+        target = f"https://www.google.com/search?q={urllib.parse.quote(target)}"
 
     if COMET_PATH and os.path.exists(COMET_PATH):
-        if target:
-            subprocess.Popen([COMET_PATH, target])
-            time.sleep(0.15)
-            focus_comet_window()
-            return {"ok": True, "browser": "Comet", "url": target, "message": f"Nouvel onglet ouvert dans Comet : {target}"}
-        else:
-            # Blank tab: focus Comet window and send native Ctrl+T
-            focused = focus_comet_window()
-            if focused:
-                time.sleep(0.12)
-                VK_CONTROL = 0x11
-                VK_T = 0x54
-                KEYEVENTF_KEYUP = 0x0002
-                user32.keybd_event(VK_CONTROL, 0, 0, 0)
-                user32.keybd_event(VK_T, 0, 0, 0)
-                time.sleep(0.04)
-                user32.keybd_event(VK_T, 0, KEYEVENTF_KEYUP, 0)
-                user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
-                return {"ok": True, "browser": "Comet", "message": "Nouvel onglet vierge ouvert dans Comet (Ctrl+T)."}
-            else:
-                subprocess.Popen([COMET_PATH])
-                return {"ok": True, "browser": "Comet", "message": "Comet lancé avec un nouvel onglet."}
+        subprocess.Popen([COMET_PATH, target])
+        time.sleep(0.2)
+        focus_comet_window()
+        return {"ok": True, "browser": "Comet", "url": target, "message": f"Navigation effectuée dans Comet vers : {target}"}
     else:
         import webbrowser
-        webbrowser.open(target or "about:blank")
-        return {"ok": True, "browser": "default", "url": target, "message": f"Nouvel onglet ouvert : {target}"}
+        webbrowser.open(target)
+        return {"ok": True, "browser": "default", "url": target, "message": f"Onglet ouvert : {target}"}
 
 
 def do_close_tab():
@@ -1037,6 +1026,11 @@ async def websocket_gemini_live(ws: WebSocket):
                                     turns=[{"role": "user", "parts": [{"text": text}]}],
                                     turn_complete=True
                                 )
+                            elif mtype in ("mic_muted", "turn_complete"):
+                                try:
+                                    await gemini_session.send_client_content(turn_complete=True)
+                                except Exception as err:
+                                    print("Error sending turn_complete on mic_muted:", err)
                 except WebSocketDisconnect:
                     pass
                 except Exception as e:
