@@ -702,29 +702,13 @@ async function startSession() {
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
-      let silenceStreak = 0;
       processor = recordCtx.createScriptProcessor(2048, 1, 1);
       processor.onaudioprocess = (e) => {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         if (isGeminiSpeaking || isMuted) return;
         const input = e.inputBuffer.getChannelData(0);
-
-        // Compute audio energy
-        let sum = 0;
-        for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
-        const rms = Math.sqrt(sum / input.length);
-
-        // If ambient noise, send zeroed silence so Gemini Live VAD triggers response without delay
-        if (rms < 0.007) {
-          silenceStreak++;
-          const targetLen = Math.round(input.length * 16000 / recordCtx.sampleRate);
-          const zeroPcm = new Int16Array(targetLen);
-          ws.send(zeroPcm.buffer);
-        } else {
-          silenceStreak = 0;
-          const pcm16 = downsampleAndConvertToInt16(input, recordCtx.sampleRate, 16000);
-          ws.send(pcm16);
-        }
+        const pcm16 = downsampleAndConvertToInt16(input, recordCtx.sampleRate, 16000);
+        ws.send(pcm16);
       };
       micSource.connect(processor);
       const muteGain = recordCtx.createGain();
@@ -873,8 +857,16 @@ async function handleToolCall(callId, name, args) {
       const res = await fetch("/api/open_tab", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url })
-      }).then(r => r.json());
-      const destUrl = res.url || url || "chrome://newtab";
+      }).then(r => r.json()).catch(() => ({ ok: true, url: url }));
+
+      let destUrl = (res.url || url || "").trim();
+      if (!destUrl || destUrl.toLowerCase().includes("onglet") || destUrl.includes("chrome://")) {
+        destUrl = "https://www.google.com";
+      }
+
+      // Open tab directly in the user's active browser
+      try { window.open(destUrl, "_blank"); } catch(e){}
+
       addLiveTask(callId, `Navigation : ${destUrl}`, "done");
 
       spawnCard({
@@ -884,7 +876,7 @@ async function handleToolCall(callId, name, args) {
           <p>Onglet ouvert / Navigation Comet :</p>
           <p style="margin-top:8px;font-size:13.5px;font-weight:700;color:#93c5fd;word-break:break-all;">${destUrl}</p>
           <div style="margin-top:12px;display:flex;gap:8px;">
-            <a href="${destUrl.startsWith('http') ? destUrl : '#'}" target="_blank" style="display:inline-block;padding:5px 12px;background:#2563eb;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600;font-size:11.5px;">↗ Accéder à la page</a>
+            <a href="${destUrl}" target="_blank" style="display:inline-block;padding:5px 12px;background:#2563eb;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600;font-size:11.5px;">↗ Accéder à la page</a>
           </div>
         `
       });
