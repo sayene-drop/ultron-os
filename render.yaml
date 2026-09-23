@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ultron-os-jarvis
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_VOICE
+        value: Charon
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash-native-audio-latest
+      - key: GEMINI_TASK_MODEL
+        value: gemini-3.6-flash
+      - key: JARVIS_LANGUAGE
+        value: français

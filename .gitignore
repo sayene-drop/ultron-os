@@ -1,0 +1,20 @@
+# Environment & Secrets
+.env
+*.env
+
+# Python & Virtualenv
+.venv/
+env/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Temporary & Logs
+*.log
+.tmp/
+.DS_Store
+
+# Template archive folder
+template-aios-local-v1-main (1)/

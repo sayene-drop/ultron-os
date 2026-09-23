@@ -1,0 +1,1088 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>JARVIS — Ultron OS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+
+<style>
+  :root {
+    --bg-dark: #07090e;
+    --bg-center: #0d1322;
+    --card-bg: rgba(14, 21, 37, 0.88);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-hover: rgba(255, 255, 255, 0.12);
+    --text-main: #f1f5f9;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+    --blue-accent: #3b82f6;
+    --blue-glow: rgba(59, 130, 246, 0.5);
+    --blue-dim: rgba(59, 130, 246, 0.15);
+    --green-ok: #10b981;
+    --red-alert: #ef4444;
+    --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-code: "JetBrains Mono", monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: radial-gradient(circle at 50% 50%, var(--bg-center) 0%, var(--bg-dark) 80%);
+    color: var(--text-main); font-family: var(--font-ui);
+    position: relative;
+  }
+
+  /* ------------------------------------------------ Top-Left Profile */
+  #top-left-profile {
+    position: fixed; top: 22px; left: 24px; z-index: 50;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .profile-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    backdrop-filter: blur(16px);
+    border-radius: 9999px; padding: 5px 12px 5px 6px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+  .profile-avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg, #1e293b, #334155);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #e2e8f0;
+  }
+  .live-badge {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+    color: #f87171; text-transform: uppercase;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--red-alert);
+    box-shadow: 0 0 8px var(--red-alert);
+    animation: livePulse 1.8s infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+  }
+  .session-timer {
+    font-family: var(--font-code); font-size: 11px;
+    color: var(--text-dim); margin-left: 2px;
+  }
+
+  /* ------------------------------------------------ Center Core & Canvas */
+  #orb-stage {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 5; pointer-events: none;
+  }
+  #orb {
+    width: 440px; height: 440px;
+    cursor: pointer; pointer-events: auto;
+    filter: drop-shadow(0 0 50px rgba(59, 130, 246, 0.35));
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  #orb:hover { transform: scale(1.02); }
+  #orb:active { transform: scale(0.98); }
+
+  /* ------------------------------------------------ Bottom-Left Live Tasks */
+  #bottom-left-tasks {
+    position: fixed; bottom: 28px; left: 28px; z-index: 30;
+    max-width: 320px; display: flex; flex-direction: column; gap: 7px;
+    pointer-events: none;
+  }
+  .task-row {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 12px; font-weight: 500; color: #cbd5e1;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    animation: taskFadeIn 0.35s ease-out;
+  }
+  @keyframes taskFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .task-icon {
+    font-size: 11px; font-weight: 700; width: 14px; text-align: center;
+  }
+  .task-row.done .task-icon { color: var(--green-ok); }
+  .task-row.running .task-icon { color: var(--blue-accent); animation: spin 1.2s linear infinite; }
+  .task-row.running { color: #93c5fd; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+
+  /* ------------------------------------------------ Bottom-Center Subtitles & Dock */
+  #bottom-dock-container {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    z-index: 50; pointer-events: none; width: 100%; max-width: 720px;
+  }
+  #subtitles {
+    text-align: center; max-width: 90%; min-height: 24px;
+    font-size: 13.5px; font-weight: 500; line-height: 1.5;
+    color: #e2e8f0; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+    transition: opacity 0.25s ease;
+  }
+  #subtitles.dim { opacity: 0.6; }
+
+  .control-dock {
+    pointer-events: auto;
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border-radius: 9999px; padding: 6px 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  .dock-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: none; outline: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(30, 41, 59, 0.75);
+    color: #f1f5f9;
+  }
+  .dock-btn:hover { transform: scale(1.08); background: rgba(51, 65, 85, 0.9); }
+  .dock-btn:active { transform: scale(0.95); }
+  .dock-btn.blue { background: #2563eb; color: #ffffff; box-shadow: 0 0 16px rgba(37, 99, 235, 0.4); }
+  .dock-btn.blue:hover { background: #3b82f6; }
+  .dock-btn.red { background: #dc2626; color: #ffffff; box-shadow: 0 0 16px rgba(220, 38, 38, 0.4); }
+  .dock-btn.red:hover { background: #ef4444; }
+  .dock-btn.muted { background: #475569; opacity: 0.8; }
+  .dock-btn svg { width: 19px; height: 19px; fill: currentColor; }
+
+  /* ------------------------------------------------ Modular Floating Drag & Drop Workspace */
+  #workspace {
+    position: fixed; inset: 0; z-index: 20;
+    pointer-events: none; overflow: hidden;
+  }
+
+  .floating-card {
+    pointer-events: auto; position: absolute;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(24px);
+    border-radius: 14px;
+    width: 380px; max-width: calc(100vw - 40px);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255,255,255,0.04);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    animation: cardSpawn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  @keyframes cardSpawn {
+    from { opacity: 0; transform: scale(0.92) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .floating-card.dragging {
+    cursor: grabbing !important;
+    box-shadow: 0 28px 60px rgba(0, 0, 0, 0.8), 0 0 25px rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.4);
+    opacity: 0.96;
+  }
+
+  .card-header {
+    cursor: grab;
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .card-title-group {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; color: #f1f5f9;
+  }
+  .card-badge {
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 6px; border-radius: 4px;
+    background: var(--blue-dim); color: #60a5fa;
+  }
+  .card-controls {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .card-btn {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+    font-size: 13px; transition: color 0.15s;
+  }
+  .card-btn:hover { color: #f87171; }
+  .card-btn.drag-icon { cursor: grab; font-size: 11px; }
+
+  .card-body {
+    padding: 16px;
+    max-height: 480px; overflow-y: auto;
+    font-size: 13px; line-height: 1.55; color: #cbd5e1;
+    user-select: text;
+  }
+  .card-body::-webkit-scrollbar { width: 5px; }
+  .card-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 9999px; }
+
+  /* Card content widgets */
+  .metrics-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 16px; padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .metric-box {
+    display: flex; flex-direction: column;
+  }
+  .metric-val {
+    font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;
+  }
+  .metric-lbl {
+    font-size: 10.5px; color: var(--text-muted); margin-top: 2px;
+  }
+
+  /* Table within card */
+  .card-table {
+    width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12.5px;
+  }
+  .card-table tr { border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+  .card-table td { padding: 8px 6px; }
+  .card-table td.strong { font-weight: 700; color: #ffffff; width: 60px; }
+  .card-table tr.highlight {
+    background: rgba(59, 130, 246, 0.12);
+    border-radius: 6px;
+  }
+  .card-table tr.highlight td { color: #93c5fd; }
+
+  /* Links at bottom of card */
+  .card-footer-links {
+    margin-top: 14px; font-size: 11px; color: #60a5fa;
+    display: flex; gap: 10px;
+  }
+  .card-footer-links a { color: #60a5fa; text-decoration: none; }
+  .card-footer-links a:hover { text-decoration: underline; }
+
+  /* Image card */
+  .card-image-preview {
+    width: 100%; border-radius: 8px; object-fit: cover; max-height: 200px;
+  }
+
+  /* Status badge on HUD */
+  #status-indicator {
+    position: fixed; top: 26px; right: 28px; z-index: 50;
+    font-size: 11px; font-family: var(--font-code); color: var(--text-muted);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  #status-indicator b { color: #60a5fa; }
+</style>
+</head>
+<body>
+
+  <!-- Top-Left Profile -->
+  <div id="top-left-profile">
+    <div class="profile-pill">
+      <div class="profile-avatar">S</div>
+      <div class="live-badge">
+        <span class="live-dot" id="live-dot"></span>
+        <span>LIVE</span>
+      </div>
+      <div class="session-timer" id="session-timer">0:00</div>
+    </div>
+  </div>
+
+  <!-- Status Indicator Top-Right -->
+  <div id="status-indicator">JARVIS · <b id="status-text">INITIALISATION</b></div>
+
+  <!-- Center Assistant Core -->
+  <div id="orb-stage">
+    <canvas id="orb" width="500" height="500"></canvas>
+  </div>
+
+  <!-- Bottom-Left Live Task Feed -->
+  <div id="bottom-left-tasks">
+    <div id="task-feed-rows"></div>
+  </div>
+
+  <!-- Bottom-Center Controls & Subtitles -->
+  <div id="bottom-dock-container">
+    <div id="subtitles">Cliquez sur le microphone ou l'orbe central pour commencer.</div>
+    <div class="control-dock">
+      <button class="dock-btn" id="btn-mic" title="Microphone (Muet / Actif)">
+        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+      </button>
+      <button class="dock-btn blue" id="btn-cc" title="Basculer cartes et affichages">
+        <svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z"/></svg>
+      </button>
+      <button class="dock-btn red" id="btn-hangup" title="Arrêter / Réinitialiser la session">
+        <svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Draggable Cards Workspace -->
+  <div id="workspace"></div>
+
+<script>
+"use strict";
+
+/* ---------------------------------------------------------- State & Globals */
+const orb = document.getElementById("orb");
+const ctx = orb.getContext("2d");
+const subtitlesEl = document.getElementById("subtitles");
+const statusTextEl = document.getElementById("status-text");
+const sessionTimerEl = document.getElementById("session-timer");
+const taskFeedEl = document.getElementById("task-feed-rows");
+const workspaceEl = document.getElementById("workspace");
+const btnMic = document.getElementById("btn-mic");
+const btnCC = document.getElementById("btn-cc");
+const btnHangup = document.getElementById("btn-hangup");
+
+let ws = null, pc = null, dc = null;
+let micStream = null, recordCtx = null, playCtx = null;
+let processor = null, recognition = null;
+let analyserIn = null, analyserOut = null;
+let running = false, isMuted = false, isGeminiSpeaking = false;
+let sessionSeconds = 0, sessionInterval = null;
+let highestZ = 100;
+let cardIndex = 0;
+
+/* Session timer */
+function startTimer() {
+  if (sessionInterval) clearInterval(sessionInterval);
+  sessionSeconds = 0;
+  sessionInterval = setInterval(() => {
+    sessionSeconds++;
+    const m = Math.floor(sessionSeconds / 60);
+    const s = sessionSeconds % 60;
+    sessionTimerEl.textContent = `${m}:${s < 10 ? "0" : ""}${s}`;
+  }, 1000);
+}
+function stopTimer() {
+  if (sessionInterval) clearInterval(sessionInterval);
+  sessionInterval = null;
+}
+
+/* ---------------------------------------------------------- Live Task Feed (Bottom-Left) */
+function addLiveTask(id, text, status = "running") {
+  let row = document.getElementById(`task-row-${id}`);
+  if (!row) {
+    row = document.createElement("div");
+    row.id = `task-row-${id}`;
+    row.className = `task-row ${status}`;
+    row.innerHTML = `<span class="task-icon">${status === "done" ? "✓" : "⟳"}</span><span class="task-label">${text}</span>`;
+    taskFeedEl.appendChild(row);
+  } else {
+    row.className = `task-row ${status}`;
+    row.querySelector(".task-icon").textContent = status === "done" ? "✓" : "⟳";
+  }
+  // Keep only 6 latest tasks
+  while (taskFeedEl.children.length > 6) {
+    taskFeedEl.removeChild(taskFeedEl.firstChild);
+  }
+}
+
+/* ---------------------------------------------------------- Drag & Drop Card Engine */
+function makeDraggable(card, handle) {
+  let isDragging = false;
+  let startX, startY, initLeft, initTop;
+
+  const onDown = (e) => {
+    if (e.target.closest("button") || e.target.closest("a") || e.target.closest(".card-btn")) return;
+    isDragging = true;
+    card.style.zIndex = ++highestZ;
+    card.classList.add("dragging");
+    startX = e.clientX;
+    startY = e.clientY;
+    const r = card.getBoundingClientRect();
+    initLeft = r.left;
+    initTop = r.top;
+    card.style.left = `${initLeft}px`;
+    card.style.top = `${initTop}px`;
+    card.style.right = "auto";
+    card.style.bottom = "auto";
+    handle.setPointerCapture(e.pointerId);
+  };
+
+  const onMove = (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    card.style.left = `${initLeft + dx}px`;
+    card.style.top = `${initTop + dy}px`;
+  };
+
+  const onUp = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    card.classList.remove("dragging");
+    try { handle.releasePointerCapture(e.pointerId); } catch(err){}
+  };
+
+  handle.addEventListener("pointerdown", onDown);
+  handle.addEventListener("pointermove", onMove);
+  handle.addEventListener("pointerup", onUp);
+  handle.addEventListener("pointercancel", onUp);
+}
+
+function spawnCard(opts = {}) {
+  const card = document.createElement("div");
+  card.className = "floating-card";
+  card.style.zIndex = ++highestZ;
+
+  // Staggered positioning around the core
+  const positions = [
+    { top: 80, left: 60 },
+    { top: 90, right: 70 },
+    { top: 320, left: 80 },
+    { top: 340, right: 90 },
+    { top: 180, left: 140 }
+  ];
+  const p = positions[cardIndex % positions.length];
+  cardIndex++;
+
+  if (p.left !== undefined) card.style.left = `${p.left}px`;
+  if (p.right !== undefined) card.style.right = `${p.right}px`;
+  card.style.top = `${p.top}px`;
+
+  const title = opts.title || "Information";
+  const badge = opts.badge || "IA";
+  const content = opts.content || "";
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div class="card-title-group">
+        <span class="card-badge">${badge}</span>
+        <span>${title}</span>
+      </div>
+      <div class="card-controls">
+        <span class="card-btn drag-icon" title="Glisser pour déplacer">⋮⋮</span>
+        <button class="card-btn close-btn" title="Fermer">✕</button>
+      </div>
+    </div>
+    <div class="card-body">${content}</div>
+  `;
+
+  const header = card.querySelector(".card-header");
+  const closeBtn = card.querySelector(".close-btn");
+  closeBtn.addEventListener("click", () => card.remove());
+
+  makeDraggable(card, header);
+  workspaceEl.appendChild(card);
+  return card;
+}
+
+/* ---------------------------------------------------------- Orb Rendering (Luminous 3D Blue Sphere & Reticle) */
+function sizeOrb() {
+  const r = orb.getBoundingClientRect();
+  orb.width = r.width * devicePixelRatio;
+  orb.height = r.height * devicePixelRatio;
+}
+window.addEventListener("resize", sizeOrb);
+sizeOrb();
+
+function getAudioLevel(analyser) {
+  if (!analyser) return 0;
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(buf);
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) sum += buf[i];
+  return sum / buf.length / 255;
+}
+
+const TAU = Math.PI * 2;
+let animTime = 0;
+
+function drawOrb() {
+  requestAnimationFrame(drawOrb);
+  animTime += 0.016;
+
+  const w = orb.width, h = orb.height;
+  const cx = w / 2, cy = h / 2;
+  const dpr = devicePixelRatio;
+  ctx.clearRect(0, 0, w, h);
+
+  const inL = (isGeminiSpeaking || isMuted) ? 0 : getAudioLevel(analyserIn);
+  const outL = getAudioLevel(analyserOut);
+  const energy = Math.max(inL, outL * 1.35);
+
+  const baseRadius = 76 * dpr;
+  const rCore = baseRadius * (1 + 0.08 * energy + 0.01 * Math.sin(animTime * 2.5));
+
+  // 1. Soft atmospheric outer blue glow
+  const gAura = ctx.createRadialGradient(cx, cy, rCore * 0.5, cx, cy, rCore * 2.6);
+  gAura.addColorStop(0, `rgba(59, 130, 246, ${0.30 + energy * 0.25})`);
+  gAura.addColorStop(0.5, `rgba(37, 99, 235, ${0.12 + energy * 0.15})`);
+  gAura.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = gAura;
+  ctx.beginPath();
+  ctx.arc(cx, cy, rCore * 2.6, 0, TAU);
+  ctx.fill();
+
+  // 2. Inner precision reticle ring with tick marks (rotating slowly)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(animTime * 0.18);
+  const numTicks = 48;
+  const rTickInner = rCore * 1.32;
+  const rTickOuter = rCore * 1.40;
+  for (let i = 0; i < numTicks; i++) {
+    const angle = (i / numTicks) * TAU;
+    const isMajor = i % 4 === 0;
+    ctx.strokeStyle = isMajor ? "rgba(96, 165, 250, 0.45)" : "rgba(59, 130, 246, 0.18)";
+    ctx.lineWidth = (isMajor ? 1.8 : 1) * dpr;
+    ctx.beginPath();
+    ctx.moveTo(rTickInner * Math.cos(angle), rTickInner * Math.sin(angle));
+    ctx.lineTo((rTickOuter + (isMajor ? 3 * dpr : 0)) * Math.cos(angle), (rTickOuter + (isMajor ? 3 * dpr : 0)) * Math.sin(angle));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 3. Middle broken circular arc ring (counter-clockwise)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-animTime * 0.12);
+  ctx.strokeStyle = `rgba(96, 165, 250, ${0.28 + energy * 0.3})`;
+  ctx.lineWidth = 1.4 * dpr;
+  const rArc = rCore * 1.58;
+  for (let i = 0; i < 4; i++) {
+    const a0 = (i / 4) * TAU + 0.15;
+    const a1 = a0 + TAU / 4 * 0.58;
+    ctx.beginPath();
+    ctx.arc(0, 0, rArc, a0, a1);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 4. Outer thin compass reticle with cardinal accents
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(animTime * 0.05);
+  ctx.strokeStyle = "rgba(59, 130, 246, 0.22)";
+  ctx.lineWidth = 1 * dpr;
+  const rOuter = rCore * 1.86;
+  ctx.beginPath();
+  ctx.arc(0, 0, rOuter, 0, TAU);
+  ctx.stroke();
+  // 4 small notch triangles
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * TAU;
+    ctx.fillStyle = "rgba(147, 197, 253, 0.6)";
+    ctx.beginPath();
+    ctx.arc(rOuter * Math.cos(a), rOuter * Math.sin(a), 2.2 * dpr, 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 5. 3D Luminous Blue Sphere Core with specular highlight
+  // Specular offset at upper-left
+  const specX = cx - rCore * 0.28;
+  const specY = cy - rCore * 0.28;
+  const gSphere = ctx.createRadialGradient(specX, specY, rCore * 0.05, cx, cy, rCore);
+  gSphere.addColorStop(0, "rgba(255, 255, 255, 1.0)");
+  gSphere.addColorStop(0.20, "rgba(147, 197, 253, 0.95)");
+  gSphere.addColorStop(0.55, `rgba(59, 130, 246, ${0.92 + energy * 0.08})`);
+  gSphere.addColorStop(0.85, "rgba(29, 78, 216, 0.96)");
+  gSphere.addColorStop(1.0, "rgba(15, 35, 90, 0.98)");
+
+  ctx.save();
+  ctx.shadowColor = "rgba(59, 130, 246, 0.6)";
+  ctx.shadowBlur = (35 + energy * 25) * dpr;
+  ctx.fillStyle = gSphere;
+  ctx.beginPath();
+  ctx.arc(cx, cy, rCore, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+}
+drawOrb();
+
+/* ---------------------------------------------------------- Audio & PCM Processing */
+function downsampleAndConvertToInt16(buffer, fromRate, toRate = 16000) {
+  if (fromRate === toRate) {
+    const l = buffer.length;
+    const out = new Int16Array(l);
+    for (let i = 0; i < l; i++) {
+      let s = Math.max(-1, Math.min(1, buffer[i]));
+      out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return out.buffer;
+  }
+  const ratio = fromRate / toRate;
+  const newLength = Math.round(buffer.length / ratio);
+  const result = new Int16Array(newLength);
+  let offsetResult = 0;
+  let offsetBuffer = 0;
+  while (offsetResult < result.length) {
+    const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+    let accum = 0, count = 0;
+    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+      accum += buffer[i];
+      count++;
+    }
+    const sample = count ? accum / count : 0;
+    const clamped = Math.max(-1, Math.min(1, sample));
+    result[offsetResult] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF;
+    offsetResult++;
+    offsetBuffer = nextOffsetBuffer;
+  }
+  return result.buffer;
+}
+
+let nextPlayTime = 0, activeSources = [], geminiSpeakTimer = null;
+
+function playGeminiChunk(base64Data) {
+  if (!playCtx) return;
+  isGeminiSpeaking = true;
+  statusTextEl.innerHTML = "<b>JARVIS PARLE</b>";
+
+  const binaryStr = atob(base64Data);
+  const len = binaryStr.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+  const int16 = new Int16Array(bytes.buffer);
+  const float32 = new Float32Array(int16.length);
+  for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768.0;
+
+  const audioBuf = playCtx.createBuffer(1, float32.length, 24000);
+  audioBuf.getChannelData(0).set(float32);
+
+  const source = playCtx.createBufferSource();
+  source.buffer = audioBuf;
+  source.connect(analyserOut);
+  analyserOut.connect(playCtx.destination);
+
+  const now = playCtx.currentTime;
+  if (nextPlayTime < now) nextPlayTime = now + 0.02;
+  source.start(nextPlayTime);
+  nextPlayTime += audioBuf.duration;
+
+  activeSources.push(source);
+  source.onended = () => {
+    activeSources = activeSources.filter(s => s !== source);
+  };
+
+  if (geminiSpeakTimer) clearTimeout(geminiSpeakTimer);
+  const waitMs = Math.max(350, (nextPlayTime - now) * 1000 + 100);
+  geminiSpeakTimer = setTimeout(() => {
+    isGeminiSpeaking = false;
+    if (running && !isMuted) statusTextEl.innerHTML = "<b>À L'ÉCOUTE</b>";
+  }, waitMs);
+}
+
+function clearPlayback() {
+  activeSources.forEach(s => { try { s.stop(); } catch(e){} });
+  activeSources = [];
+  if (playCtx) nextPlayTime = playCtx.currentTime;
+  isGeminiSpeaking = false;
+  if (geminiSpeakTimer) clearTimeout(geminiSpeakTimer);
+}
+
+/* ---------------------------------------------------------- Connection Logic */
+async function startSession() {
+  statusTextEl.innerHTML = "<b>CONNEXION…</b>";
+  subtitlesEl.textContent = "Connexion à JARVIS (Ultron OS)…";
+
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+
+    recordCtx = new (window.AudioContext || window.webkitAudioContext)();
+    playCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    analyserIn = recordCtx.createAnalyser(); analyserIn.fftSize = 256;
+    const micSource = recordCtx.createMediaStreamSource(micStream);
+    micSource.connect(analyserIn);
+
+    analyserOut = playCtx.createAnalyser(); analyserOut.fftSize = 256;
+
+    const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(`${wsProto}//${location.host}/ws/live`);
+    ws.binaryType = "arraybuffer";
+
+    ws.onopen = () => {
+      processor = recordCtx.createScriptProcessor(2048, 1, 1);
+      processor.onaudioprocess = (e) => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        if (isGeminiSpeaking || isMuted) return;
+        const input = e.inputBuffer.getChannelData(0);
+        const pcm16 = downsampleAndConvertToInt16(input, recordCtx.sampleRate, 16000);
+        ws.send(pcm16);
+      };
+      micSource.connect(processor);
+      const muteGain = recordCtx.createGain();
+      muteGain.gain.value = 0;
+      processor.connect(muteGain);
+      muteGain.connect(recordCtx.destination);
+
+      // Web Speech API for real-time text transcription
+      if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        try {
+          recognition = new SR();
+          recognition.lang = "fr-FR";
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.onresult = (ev) => {
+            if (isGeminiSpeaking || isMuted) return;
+            let text = "";
+            for (let i = ev.resultIndex; i < ev.results.length; ++i) {
+              text += ev.results[i][0].transcript;
+            }
+            if (text) subtitlesEl.textContent = text.trim();
+          };
+          recognition.onerror = (e) => {
+            if (e.error !== "no-speech") console.warn("SpeechRec error:", e.error);
+          };
+          recognition.onend = () => {
+            if (running && !isMuted) {
+              try { recognition.start(); } catch(e){}
+            }
+          };
+          recognition.start();
+        } catch(e){}
+      }
+    };
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "ready") {
+          running = true;
+          isMuted = false;
+          statusTextEl.innerHTML = "<b>EN LIGNE</b>";
+          subtitlesEl.textContent = "Bonjour, je suis là, dites-moi ce qui vous ferait plaisir.";
+          startTimer();
+          addLiveTask("init", "Session JARVIS active", "done");
+        } else if (msg.type === "audio") {
+          playGeminiChunk(msg.data);
+        } else if (msg.type === "text") {
+          const clean = msg.text.replace(/\*\*Responding to Request\*\*/g, "").trim();
+          if (clean && !clean.startsWith("**")) subtitlesEl.textContent = clean;
+        } else if (msg.type === "interrupted") {
+          clearPlayback();
+        } else if (msg.type === "tool_call") {
+          handleToolCall(msg.id, msg.name, msg.args);
+        } else if (msg.type === "error") {
+          statusTextEl.innerHTML = `<b style="color:var(--red-alert)">ERREUR</b>`;
+          subtitlesEl.textContent = msg.message;
+        }
+      } catch(err){
+        console.error(err);
+      }
+    };
+
+    ws.onclose = () => {
+      stopSession();
+    };
+
+  } catch(err) {
+    statusTextEl.innerHTML = `<b style="color:var(--red-alert)">ERREUR MICRO</b>`;
+    subtitlesEl.textContent = `Erreur d'accès micro : ${err.message}`;
+  }
+}
+
+function stopSession() {
+  running = false;
+  isMuted = false;
+  stopTimer();
+  clearPlayback();
+  if (ws) { try { ws.close(); } catch(e){} ws = null; }
+  if (processor) { try { processor.disconnect(); } catch(e){} processor = null; }
+  if (recordCtx) { try { recordCtx.close(); } catch(e){} recordCtx = null; }
+  if (playCtx) { try { playCtx.close(); } catch(e){} playCtx = null; }
+  if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  analyserIn = analyserOut = null;
+  statusTextEl.innerHTML = "DÉCONNECTÉ";
+  subtitlesEl.textContent = "Session terminée. Cliquez sur le micro pour relancer.";
+}
+
+function toggleMic() {
+  if (!running) {
+    startSession();
+  } else {
+    isMuted = !isMuted;
+    btnMic.classList.toggle("muted", isMuted);
+    if (isMuted) {
+      statusTextEl.innerHTML = "<b>MICRO EN PAUSE</b>";
+      subtitlesEl.textContent = "Micro en pause. Cliquez pour réactiver.";
+      clearPlayback();
+    } else {
+      statusTextEl.innerHTML = "<b>À L'ÉCOUTE</b>";
+      subtitlesEl.textContent = "À votre écoute, monsieur.";
+      if (recognition) { try { recognition.start(); } catch(e){} }
+    }
+  }
+}
+
+btnMic.addEventListener("click", toggleMic);
+orb.addEventListener("click", toggleMic);
+
+btnHangup.addEventListener("click", () => {
+  stopSession();
+});
+
+btnCC.addEventListener("click", () => {
+  // Toggle workspace visibility or spawn demonstration sample cards
+  if (workspaceEl.children.length === 0) {
+    // Spawn initial rich demo cards from screenshot
+    spawnSampleMetricsCard();
+    spawnSamplePostCard();
+  } else {
+    workspaceEl.style.display = workspaceEl.style.display === "none" ? "block" : "none";
+  }
+});
+
+/* ---------------------------------------------------------- Tool Handlers & Draggable Card Creators */
+function toolOutput(callId, name, res) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "tool_response",
+      id: callId,
+      name: name,
+      output: res
+    }));
+  }
+}
+
+async function handleToolCall(callId, name, args) {
+  addLiveTask(callId, `Action : ${name}`, "running");
+
+  if (name === "open_tab") {
+    const url = args.url || "";
+    try {
+      const res = await fetch("/api/open_tab", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url })
+      }).then(r => r.json());
+      addLiveTask(callId, `Onglet Comet ouvert`, "done");
+      spawnCard({
+        title: "Comet Browser",
+        badge: "NAVIGATION",
+        content: `<p>Onglet ouvert dans Comet :</p><p style="margin-top:6px;color:#93c5fd;font-weight:600;">${res.url || "chrome://newtab"}</p>`
+      });
+      toolOutput(callId, name, res);
+    } catch(err) {
+      toolOutput(callId, name, { ok: false, error: String(err) });
+    }
+  } else if (name === "close_tab") {
+    try {
+      const res = await fetch("/api/close_tab", { method: "POST" }).then(r => r.json());
+      addLiveTask(callId, "Onglet fermé", "done");
+      toolOutput(callId, name, res);
+    } catch(err) {
+      toolOutput(callId, name, { ok: false, error: String(err) });
+    }
+  } else if (name === "close_app") {
+    try {
+      const res = await fetch("/api/close_app", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: args.name || "" })
+      }).then(r => r.json());
+      addLiveTask(callId, `Fermé : ${args.name}`, "done");
+      toolOutput(callId, name, res);
+    } catch(err) {
+      toolOutput(callId, name, { ok: false, error: String(err) });
+    }
+  } else if (name === "press_hotkey") {
+    try {
+      const res = await fetch("/api/hotkey", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hotkey: args.hotkey || "" })
+      }).then(r => r.json());
+      toolOutput(callId, name, res);
+    } catch(err) {
+      toolOutput(callId, name, { ok: false, error: String(err) });
+    }
+  } else if (name === "run_command") {
+    try {
+      const res = await fetch("/api/run_cmd", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: args.command || "" })
+      }).then(r => r.json());
+      addLiveTask(callId, `PowerShell exécuté`, "done");
+      spawnCard({
+        title: "Commande Système",
+        badge: "POWERSHELL",
+        content: `<code>${args.command}</code><pre style="margin-top:10px;font-size:11.5px;color:#94a3b8;white-space:pre-wrap;">${res.output || res.error || "Exécuté."}</pre>`
+      });
+      toolOutput(callId, name, res);
+    } catch(err) {
+      toolOutput(callId, name, { ok: false, error: String(err) });
+    }
+  } else if (name === "manage_tasks") {
+    try {
+      const res = await fetch("/api/tasks/manage", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(args)
+      }).then(r => r.json());
+      addLiveTask(callId, `Gestion des tâches`, "done");
+
+      if (args.action === "list") {
+        const tasks = res.tasks || [];
+        let rowsHtml = tasks.map(t => {
+          const badge = t.priority === "urgent" ? `<span style="color:#ef4444;font-weight:700;">URGENT</span>` : (t.priority === "high" ? `<span style="color:#f59e0b;font-weight:700;">HAUTE</span>` : `NORMALE`);
+          return `<tr><td class="strong">#${t.id}</td><td><b>${t.title}</b></td><td style="text-align:right;">${badge}</td></tr>`;
+        }).join("");
+        spawnCard({
+          title: "Tâches & Agenda",
+          badge: "AGENDA",
+          content: `<table class="card-table">${rowsHtml || "<tr><td colspan='3'>Aucune tâche en attente.</td></tr>"}</table>`
+        });
+      } else if (args.action === "add") {
+        spawnCard({
+          title: "Tâche Ajoutée",
+          badge: "AGENDA",
+          content: `<p>Tâche enregistrée :</p><p style="margin-top:6px;font-weight:700;color:#93c5fd;">#${res.id} — ${res.title}</p><p style="margin-top:4px;font-size:11px;color:#64748b;">Priorité : ${res.priority}</p>`
+        });
+      }
+      toolOutput(callId, name, res);
+    } catch(err) {
+      toolOutput(callId, name, { ok: false, error: String(err) });
+    }
+  } else if (name === "manage_memory") {
+    try {
+      const res = await fetch("/api/memory/manage", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(args)
+      }).then(r => r.json());
+      addLiveTask(callId, "Mémoire mise à jour", "done");
+      spawnCard({
+        title: "Mémoire Centrale",
+        badge: "MÉMOIRE",
+        content: `<p>Fait enregistré dans MEMORY.md :</p><blockquote style="margin-top:8px;padding-left:10px;border-left:3px solid #3b82f6;color:#93c5fd;font-style:italic;">« ${args.fact} »</blockquote>`
+      });
+      toolOutput(callId, name, res);
+    } catch(err) {
+      toolOutput(callId, name, { ok: false, error: String(err) });
+    }
+  } else if (name === "daily_briefing") {
+    try {
+      const b = await fetch("/api/briefing").then(r => r.json());
+      addLiveTask(callId, "Briefing exécutif généré", "done");
+
+      const newsList = (b.top_news || []).map(n => `<tr><td style="color:#60a5fa;">•</td><td>${n}</td></tr>`).join("");
+      const tasksList = (b.urgent_tasks || []).map(t => `<tr class="highlight"><td style="color:#f59e0b;">★</td><td>${t}</td></tr>`).join("");
+
+      spawnCard({
+        title: `Briefing Exécutif — ${b.date}`,
+        badge: "BRIEFING",
+        content: `
+          <div class="metrics-row">
+            <div class="metric-box"><span class="metric-val">${b.total_pending}</span><span class="metric-lbl">en attente</span></div>
+            <div class="metric-box"><span class="metric-val">${b.urgent_tasks ? b.urgent_tasks.length : 0}</span><span class="metric-lbl">urgentes</span></div>
+            <div class="metric-box"><span class="metric-val">${b.task_stats ? b.task_stats.done : 0}</span><span class="metric-lbl">terminées</span></div>
+          </div>
+          <table class="card-table">
+            ${tasksList || "<tr><td colspan='2' style='color:#64748b;'>Aucune tâche urgente aujourd'hui.</td></tr>"}
+            ${newsList}
+          </table>
+        `
+      });
+      toolOutput(callId, name, { ok: true, summary: "Briefing affiché avec succès." });
+    } catch(err) {
+      toolOutput(callId, name, { ok: false, error: String(err) });
+    }
+  } else if (name === "execute_task" || name === "delegate_to_claude") {
+    try {
+      const res = await fetch("/api/task", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: args.title || "Tâche", prompt: args.prompt || "" })
+      }).then(r => r.json());
+      addLiveTask(res.id, args.title || "Tâche en cours", "running");
+      toolOutput(callId, name, { status: "started", task_id: res.id });
+      pollTask(res.id, args.title || "Tâche");
+    } catch(err) {
+      toolOutput(callId, name, { ok: false, error: String(err) });
+    }
+  } else if (name === "display_card") {
+    spawnCard({
+      title: args.title || "Note",
+      badge: (args.kind || "INFO").toUpperCase(),
+      content: marked.parse(args.content || "")
+    });
+    toolOutput(callId, name, { status: "displayed" });
+  } else if (name === "display_report") {
+    spawnCard({
+      title: args.title || "Rapport",
+      badge: "RAPPORT",
+      content: marked.parse(args.markdown || "")
+    });
+    toolOutput(callId, name, { status: "displayed" });
+  }
+}
+
+async function pollTask(id, title) {
+  const task = await fetch(`/api/task/${id}`).then(r => r.json());
+  if (task.status === "running") {
+    return setTimeout(() => pollTask(id, title), 1800);
+  }
+  addLiveTask(id, title, task.status === "done" ? "done" : "error");
+
+  const summary = (task.output || "").slice(0, 3500);
+  spawnCard({
+    title: title,
+    badge: "RÉSULTAT",
+    content: marked.parse(summary)
+  });
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "client_message",
+      text: `[SYSTEM] Résultat de la tâche "${title}" (${task.status}): ${summary.slice(0, 1500)}\nRésume oralement en une phrase polie.`
+    }));
+  }
+}
+
+/* ---------------------------------------------------------- Sample Demonstration Cards (Matches Screenshot) */
+function spawnSampleMetricsCard() {
+  spawnCard({
+    title: "Gemini franchit le milliard d'utilisateurs",
+    badge: "ACTUALITÉ",
+    content: `
+      <table class="card-table">
+        <tr><td class="strong">1 Md</td><td>utilisateurs actifs mensuels</td></tr>
+        <tr class="highlight"><td class="strong">150 M</td><td>images générées par jour</td></tr>
+        <tr><td class="strong">63 %</td><td>des interactions se font à la voix</td></tr>
+        <tr><td class="strong">Annonce</td><td>Sundar Pichai, 11 août 2026</td></tr>
+      </table>
+      <p style="margin-top:12px;font-size:11.5px;color:#94a3b8;">Croissance : 650M (oct. 2025) puis 950M mi-2026 puis 1 Md.</p>
+      <div class="card-footer-links">
+        <a href="#">Siècle Digital</a> · <a href="#">Le Monde Informatique</a>
+      </div>
+    `
+  });
+}
+
+function spawnSamplePostCard() {
+  spawnCard({
+    title: "Post LinkedIn — Gemini",
+    badge: "RÉDACTION",
+    content: `
+      <div class="metrics-row">
+        <div class="metric-box"><span class="metric-val">1 Md</span><span class="metric-lbl">utilisateurs</span></div>
+        <div class="metric-box"><span class="metric-val">150 M</span><span class="metric-lbl">images / jour</span></div>
+        <div class="metric-box"><span class="metric-val">63%</span><span class="metric-lbl">voix</span></div>
+      </div>
+      <p><b>Angle :</b> le clavier laisse place à la voix</p>
+      <p style="margin-top:8px;">Google vient de lâcher les vrais chiffres de Gemini. Et ils sont énormes.</p>
+      <p style="margin-top:8px;">63% des gens ne tapent plus. Ils parlent à l'IA. On bascule du clavier à la voix sans même s'en rendre compte.</p>
+      <p style="margin-top:10px;color:#93c5fd;font-weight:600;">Toi, tu parles déjà à ton IA ou tu tapes encore au clavier ?</p>
+    `
+  });
+}
+
+// Initial demo cards spawned so interface matches screenshot immediately on load
+window.addEventListener("DOMContentLoaded", () => {
+  spawnSampleMetricsCard();
+  spawnSamplePostCard();
+  addLiveTask("demo1", "Récupérer résumé emails non lus", "done");
+  addLiveTask("demo2", "Générer image avec WaveSpeed", "running");
+  addLiveTask("demo3", "Trouver image Sundar Pichai", "done");
+});
+
+</script>
+</body>
+</html>

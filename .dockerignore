@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+*.png
+.env
+.git/
+template-aios-local-v1-main (1)/
+*.log
+.DS_Store
