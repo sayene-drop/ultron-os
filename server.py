@@ -97,11 +97,11 @@ soignée, débit calme, jamais d'exubérance. Tu t'adresses à l'utilisateur par
 "monsieur", avec une courtoisie raffinée et une pointe d'esprit pince-sans-rire
 ("Très bien, monsieur.", "À vos ordres, monsieur.", "C'est fait, monsieur.").
 Réponses COURTES (une ou deux phrases), naturelles, directes et percutantes.
+RÉPONSE INSTANTANÉE : Réponds dès la première fraction de seconde où monsieur s'arrête de parler. Ne fais aucune pause ni hésitation inutile.
 
 RÈGLES DU NAVIGATEUR PRINCIPAL (COMET) & ONGLETS :
 - Le navigateur principal de monsieur est **Comet** (de Perplexity).
-- Pour ouvrir un onglet ("ouvre un onglet", "nouvel onglet", "ouvre un onglet sur Comet", "ouvre YouTube dans un onglet"), appelle IMMÉDIATEMENT open_tab (avec l'URL si demandée, ou sans URL pour un onglet vierge).
-- Pour ouvrir un site ("ouvre mes emails", "ouvre YouTube"), appelle open_tab ou open_url: cela s'ouvre directement dans Comet.
+- Pour ouvrir un onglet ou un site ("ouvre un onglet", "ouvre YouTube", "cherche sur Comet"), appelle IMMÉDIATEMENT open_tab (avec l'URL si demandée, ou sans URL pour un onglet vierge).
 - Pour fermer un onglet ("ferme cet onglet", "ferme l'onglet"), appelle IMMÉDIATEMENT close_tab.
 
 RÈGLES D'ACTION ET DE CONTRÔLE SUR CE PC :
@@ -124,11 +124,11 @@ Ne prétexte jamais qu'un outil manque: tu as le contrôle direct du PC, de la m
 TOOLS = [{
     "type": "function",
     "name": "open_tab",
-    "description": "Ouvre un nouvel onglet dans le navigateur principal de monsieur (Comet). Ouvre directement l'URL demandée si précisée, sinon un nouvel onglet vierge.",
+    "description": "Ouvre un nouvel onglet ou un site dans le navigateur principal de monsieur (Comet). Ouvre directement l'URL demandée si précisée, sinon un nouvel onglet vierge.",
     "parameters": {
         "type": "object",
         "properties": {
-            "url": {"type": "string", "description": "URL optionnelle à ouvrir dans le nouvel onglet (ex: 'https://youtube.com', 'https://mail.google.com')"},
+            "url": {"type": "string", "description": "URL optionnelle à ouvrir dans Comet (ex: 'https://youtube.com', 'https://mail.google.com')"},
         },
     },
 }, {
@@ -138,18 +138,6 @@ TOOLS = [{
     "parameters": {
         "type": "object",
         "properties": {},
-    },
-}, {
-    "type": "function",
-    "name": "open_url",
-    "description": "Ouvre un site web dans le navigateur principal Comet (ex: 'https://youtube.com').",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "url": {"type": "string", "description": "URL complète à ouvrir"},
-            "monitor": {"type": "string", "description": "Écran cible optionnel"},
-        },
-        "required": ["url"],
     },
 }, {
     "type": "function",
@@ -205,18 +193,6 @@ TOOLS = [{
         "properties": {
             "title": {"type": "string", "description": "Titre court de la tâche (3-5 mots)"},
             "prompt": {"type": "string", "description": "Instructions complètes et détaillées pour exécuter la tâche"},
-        },
-        "required": ["title", "prompt"],
-    },
-}, {
-    "type": "function",
-    "name": "delegate_to_claude",
-    "description": "Alias pour execute_task.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "title": {"type": "string", "description": "Titre court de la tâche"},
-            "prompt": {"type": "string", "description": "Instructions détaillées"},
         },
         "required": ["title", "prompt"],
     },
